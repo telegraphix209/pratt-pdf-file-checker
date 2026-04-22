@@ -1,0 +1,34 @@
+{
+  "passed" : false,
+  "totalPages" : 150,
+  "processingTimeMs" : 1247,
+  "exitCode" : 1,
+  "inputPdf" : "/path/to/large-document.pdf",
+  "referencePage" : {
+    "pageNumber" : 1,
+    "width" : 612.0,
+    "height" : 792.0,
+    "orientation" : "portrait",
+    "boxUsed" : "CropBox"
+  },
+  "mismatchCount" : 2,
+  "mismatches" : [ {
+    "pageNumber" : 25,
+    "actualWidth" : 595.0,
+    "actualHeight" : 842.0,
+    "actualOrientation" : "portrait",
+    "expectedWidth" : 612.0,
+    "expectedHeight" : 792.0,
+    "expectedOrientation" : "portrait",
+    "mismatchReason" : "Width mismatch: 595.00 != 612.00, Height mismatch: 842.00 != 792.00"
+  }, {
+    "pageNumber" : 87,
+    "actualWidth" : 792.0,
+    "actualHeight" : 612.0,
+    "actualOrientation" : "landscape",
+    "expectedWidth" : 612.0,
+    "expectedHeight" : 792.0,
+    "expectedOrientation" : "portrait",
+    "mismatchReason" : "Orientation mismatch: landscape != portrait"
+  } ]
+}

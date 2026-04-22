@@ -1,0 +1,32 @@
+=== PDF Preflight Report ===
+Generated: 2026-04-20T10:30:45Z
+Input: /path/to/large-document.pdf
+
+Status: FAIL
+Total Pages: 150
+
+Reference Page: Page 1
+  Width: 612.00 pts (8.50 inches)
+  Height: 792.00 pts (11.00 inches)
+  Orientation: portrait
+  Box Used: CropBox
+
+Processing Time: 1247 ms
+
+Mismatches Found: 2
+
+Page 25:
+  Actual: 595.00 x 842.00 pts (portrait)
+  Expected: 612.00 x 792.00 pts (portrait)
+  Reason: Width mismatch: 595.00 != 612.00, Height mismatch: 842.00 != 792.00
+
+Page 87:
+  Actual: 792.00 x 612.00 pts (landscape)
+  Expected: 612.00 x 792.00 pts (portrait)
+  Reason: Orientation mismatch: landscape != portrait
+
+Summary:
+  Dimension mismatches: 1
+  Orientation mismatches: 1
+  Pages checked: 150
+  Pages failed: 2

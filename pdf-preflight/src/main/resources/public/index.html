@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pratt PDF File Checker</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- PDF.js for client-side PDF rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Pratt PDF File Checker</h1>
+            <p class="subtitle">Validate PDF page dimensions, orientation, and print readiness</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section" id="uploadSection">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📄</div>
+                <h2>Drag & Drop PDF Here</h2>
+                <p>or</p>
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                <p class="file-info" id="fileInfo"></p>
+                <p class="file-limit">Maximum file size: 1 GB</p>
+            </div>
+
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <h3>Configuration</h3>
+                <div class="config-option">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useCropBox" checked>
+                        <span>Use CropBox (fallback to MediaBox)</span>
+                    </label>
+                </div>
+                <div class="config-option">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="skipPreview">
+                        <span>Don't Show Preview (faster processing)</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Processing Section -->
+        <section class="processing-section" id="processingSection" style="display: none;">
+            <div class="spinner"></div>
+            <h2>Processing PDF...</h2>
+            <p id="processingStatus">Uploading and validating your PDF</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="card status-card" id="statusCard">
+                    <h3>Status</h3>
+                    <div class="status-value" id="statusValue">-</div>
+                </div>
+                <div class="card">
+                    <h3>Total Pages</h3>
+                    <div class="metric-value" id="totalPages">-</div>
+                </div>
+                <div class="card">
+                    <h3>Mismatches</h3>
+                    <div class="metric-value" id="mismatchCount">-</div>
+                </div>
+                <div class="card">
+                    <h3>Warnings</h3>
+                    <div class="metric-value" id="warningCount">-</div>
+                </div>
+                <div class="card">
+                    <h3>Processing Time</h3>
+                    <div class="metric-value" id="processingTime">-</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-success" id="prepareForPrintBtn" style="display: none;">
+                    🖨️ Prepare for Print
+                </button>
+            </div>
+
+            <!-- Results Content -->
+            <div class="results-content" id="resultsContent">
+                <!-- PDF Preview Panel (conditionally shown) -->
+                <div class="preview-panel" id="previewPanel">
+                    <h3>PDF Preview</h3>
+                    <div class="preview-controls">
+                        <button class="btn btn-small" id="prevPageBtn" disabled>◀ Previous</button>
+                        <span id="pageInfo">Page 0 of 0</span>
+                        <button class="btn btn-small" id="nextPageBtn" disabled>Next ▶</button>
+                        <button class="btn btn-small" id="zoomInBtn">🔍+</button>
+                        <button class="btn btn-small" id="zoomOutBtn">🔍-</button>
+                    </div>
+                    <div class="preview-container" id="previewContainer">
+                        <canvas id="pdfCanvas"></canvas>
+                    </div>
+                    <div class="thumbnail-strip" id="thumbnailStrip"></div>
+                </div>
+
+                <!-- Report Panel -->
+                <div class="report-panel" id="reportPanel">
+                    <h3>Detailed Report</h3>
+                    <div id="reportContent">
+                        <!-- Reference Page Info -->
+                        <div class="reference-info" id="referenceInfo"></div>
+
+                        <!-- Mismatches Table -->
+                        <div class="mismatches-section" id="mismatchesSection">
+                            <h4>Mismatches Found</h4>
+                            <table class="mismatches-table" id="mismatchesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Page</th>
+                                        <th>Actual Size</th>
+                                        <th>Expected Size</th>
+                                        <th>Orientation</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mismatchesBody">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Page Analysis Table -->
+                        <div class="page-analysis-section" id="pageAnalysisSection">
+                            <h4>📊 Detailed Page Analysis</h4>
+                            <div class="table-wrapper">
+                                <table class="page-analysis-table" id="pageAnalysisTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Page</th>
+                                            <th>Dimensions (inches)</th>
+                                            <th>Orientation</th>
+                                            <th>Colorspaces</th>
+                                            <th>Font Issues</th>
+                                            <th>Resolution</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pageAnalysisBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Export Buttons -->
+                        <div class="export-buttons">
+                            <button class="btn btn-primary" id="exportJsonBtn">Export JSON</button>
+                            <button class="btn btn-primary" id="exportTextBtn">Export Text</button>
+                            <button class="btn btn-secondary" id="resetBtn">Submit a New PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error Section -->
+        <section class="error-section" id="errorSection" style="display: none;">
+            <div class="error-card">
+                <div class="error-icon">❌</div>
+                <h2>Error</h2>
+                <p id="errorMessage"></p>
+                <button class="btn btn-primary" onclick="resetUI()">Try Again</button>
+            </div>
+        </section>
+
+        <!-- Print Preparation Modal -->
+        <div id="printPrepModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🖨️ Prepare for Print - Summary</h3>
+                    <button class="modal-close" id="closeModalBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="prepProcessing" style="text-align: center; padding: 40px;">
+                        <div class="spinner"></div>
+                        <p>Preparing PDF for print...</p>
+                    </div>
+                    <div id="prepResults" style="display: none;">
+                        <div class="fixes-section">
+                            <h4>✅ Fixes Applied:</h4>
+                            <div id="fixesApplied"></div>
+                        </div>
+                        <div class="warnings-section">
+                            <h4>⚠️ Remaining Warnings:</h4>
+                            <div id="remainingWarnings"></div>
+                        </div>
+                        <div class="download-section">
+                            <p class="success-message">Your print-ready PDF has been prepared!</p>
+                            <button class="btn btn-success btn-large" id="downloadPreparedBtn">
+                                📥 Download Print-Ready PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/preview.js?v=2"></script>
+    <script src="js/report.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
+</body>
+</html>

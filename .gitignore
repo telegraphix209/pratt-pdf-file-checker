@@ -1,0 +1,36 @@
+# Build targets
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+out/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# PDF test files (if any)
+*.pdf
+
+# Reports
+preflight-report.json
+preflight-report.txt
