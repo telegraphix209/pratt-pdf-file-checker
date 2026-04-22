@@ -1,4 +1,9 @@
-# PDF Preflight Module
+# Pratt PDF File Checker
+
+[![Build Status](https://github.com/telegraphix209/pratt-pdf-file-checker/actions/workflows/build-installers.yml/badge.svg)](https://github.com/telegraphix209/pratt-pdf-file-checker/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+A professional PDF preflight validation and print preparation tool. Similar to commercial tools like callas pdfToolbox, designed to validate PDF documents for print readiness.
 
 A production-minded Java-based PDF preflight engine for validating page dimensions and orientation consistency in large PDF files (up to 1GB).
 
@@ -17,6 +22,65 @@ This tool performs preflight validation on PDF documents similar to a subset of 
 - **Optional Rasterization**: Render failed pages using MuPDF CLI utilities
 - **Modular Architecture**: Easy to extend with additional preflight checks
 - **Clear Exit Codes**: 0 (pass), 1 (fail), 2 (error) for CI/CD integration
+
+## 📦 Installation
+
+### Option 1: Native Installers (Recommended - No Java Required)
+
+Download from [GitHub Releases](https://github.com/telegraphix209/pratt-pdf-file-checker/releases):
+
+**macOS**:
+```bash
+# Download the DMG
+open Pratt-PDF-Checker-1.0.0.dmg
+# Drag to Applications folder
+```
+
+**Windows**:
+```bash
+# Download the EXE installer
+# Double-click to install
+```
+
+**Linux (Debian/Ubuntu)**:
+```bash
+sudo dpkg -i pratt-pdf-checker_1.0.0-1_amd64.deb
+```
+
+**Linux (RedHat/Fedora)**:
+```bash
+sudo rpm -i pratt-pdf-checker-1.0.0-1.x86_64.rpm
+```
+
+### Option 2: Run from JAR (Requires Java)
+
+**Requirements**: Java 11 or higher
+
+```bash
+java -jar pdf-preflight-1.0.0.jar
+```
+
+### Option 3: Build from Source
+
+```bash
+git clone https://github.com/telegraphix209/pratt-pdf-file-checker.git
+cd pdf-preflight
+
+# Build JAR
+mvn clean package -DskipTests
+
+# Run
+java -jar target/pdf-preflight-1.0.0.jar
+
+# Or build native installer
+./build-installer.sh        # macOS
+build-installer.bat         # Windows
+./build-installer-linux.sh  # Linux
+```
+
+## 🚀 Usage
+
+---
 
 ## Prerequisites
 
