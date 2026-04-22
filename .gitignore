@@ -34,3 +34,10 @@ Thumbs.db
 # Reports
 preflight-report.json
 preflight-report.txt
+
+# Built installers (too large for git)
+dist/
+*.dmg
+*.exe
+*.deb
+*.rpm
