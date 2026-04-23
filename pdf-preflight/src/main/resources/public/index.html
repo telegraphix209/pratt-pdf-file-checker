@@ -45,6 +45,18 @@
                         <span>Don't Show Preview (faster processing)</span>
                     </label>
                 </div>
+                <div class="config-option">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableRasterizer">
+                        <span>Enable Page Rasterization (requires MuPDF)</span>
+                    </label>
+                    <select id="rasterDpi" style="margin-left: 10px; padding: 4px;">
+                        <option value="72">72 DPI</option>
+                        <option value="150" selected>150 DPI</option>
+                        <option value="200">200 DPI</option>
+                        <option value="300">300 DPI</option>
+                    </select>
+                </div>
             </div>
         </section>
 
@@ -107,6 +119,13 @@
                         <canvas id="pdfCanvas"></canvas>
                     </div>
                     <div class="thumbnail-strip" id="thumbnailStrip"></div>
+                </div>
+
+                <!-- Rasterized Images Panel (conditionally shown) -->
+                <div class="rasterized-panel" id="rasterizedPanel" style="display: none;">
+                    <h3>🖼️ Rasterized Pages</h3>
+                    <div id="rasterizedStatus" class="rasterized-status">Loading...</div>
+                    <div class="rasterized-grid" id="rasterizedGrid"></div>
                 </div>
 
                 <!-- Report Panel -->

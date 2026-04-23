@@ -2,6 +2,7 @@ package com.preflight.web;
 
 import com.preflight.config.PdfPreflightConfig;
 import com.preflight.model.PdfPreflightResult;
+import com.preflight.rasterizer.PdfRasterizer;
 import com.preflight.service.PdfPreflightService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import spark.Request;
@@ -29,6 +30,7 @@ public class PreflightApiController {
     
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final long MAX_FILE_SIZE = 1024L * 1024 * 1024; // 1GB
+    private static PdfRasterizer rasterizer = null;
     
     public static void setupRoutes() {
         
@@ -78,6 +80,18 @@ public class PreflightApiController {
         // POST /api/download-file - Download file from path
         post("/api/download-file", (request, response) -> {
             return handleDownloadFile(request, response);
+        });
+        
+        // GET /api/rasterizer/status - Check if MuPDF is available
+        get("/api/rasterizer/status", (request, response) -> {
+            response.type("application/json");
+            return checkRasterizerStatus(request, response);
+        });
+        
+        // POST /api/rasterize - Rasterize PDF pages
+        post("/api/rasterize", (request, response) -> {
+            response.type("application/json");
+            return handleRasterize(request, response);
         });
         
         // Error handlers
@@ -338,6 +352,105 @@ public class PreflightApiController {
     }
     
     /**
+     * Sets the rasterizer instance.
+     */
+    public static void setRasterizer(PdfRasterizer rasterizer) {
+        PreflightApiController.rasterizer = rasterizer;
+    }
+    
+    /**
+     * Checks if MuPDF rasterizer is available.
+     */
+    private static String checkRasterizerStatus(Request request, Response response) {
+        Map<String, Object> result = new HashMap<>();
+        boolean available = rasterizer != null && rasterizer.isMuPdfAvailable();
+        result.put("available", available);
+        result.put("message", available ? "MuPDF is available" : "MuPDF not found");
+        
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            return "{\"available\": false, \"message\": \"Error checking status\"}";
+        }
+    }
+    
+    /**
+     * Handles PDF rasterization request.
+     */
+    private static String handleRasterize(Request request, Response response) {
+        try {
+            // Parse request body
+            String requestBody = request.body();
+            Map<String, Object> requestData = objectMapper.readValue(requestBody, Map.class);
+            
+            String inputPdfPath = (String) requestData.get("inputPdfPath");
+            @SuppressWarnings("unchecked")
+            java.util.List<Integer> pageNumbers = (java.util.List<Integer>) requestData.get("pageNumbers");
+            Integer dpi = (Integer) requestData.getOrDefault("dpi", 150);
+            
+            if (inputPdfPath == null || inputPdfPath.isEmpty()) {
+                throw new IllegalArgumentException("Missing inputPdfPath");
+            }
+            
+            if (pageNumbers == null || pageNumbers.isEmpty()) {
+                throw new IllegalArgumentException("Missing pageNumbers");
+            }
+            
+            // Check if rasterizer is available
+            if (rasterizer == null || !rasterizer.isMuPdfAvailable()) {
+                response.status(503);
+                return createErrorResponse(false, "MuPDF is not installed or not available");
+            }
+            
+            // Create temp directory for output
+            String outputDir = System.getProperty("java.io.tmpdir") + "/preflight-rasterized-" + UUID.randomUUID();
+            
+            // Convert List<Integer> to int[]
+            int[] pages = pageNumbers.stream().mapToInt(i -> i).toArray();
+            
+            // Rasterize pages
+            boolean success = rasterizer.rasterizePages(inputPdfPath, pages, outputDir, dpi);
+            
+            if (!success) {
+                response.status(500);
+                return createErrorResponse(false, "Rasterization failed");
+            }
+            
+            // List generated images
+            File outputDirFile = new File(outputDir);
+            File[] imageFiles = outputDirFile.listFiles((dir, name) -> name.endsWith(".png"));
+            
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("success", true);
+            responseData.put("outputDir", outputDir);
+            responseData.put("imageCount", imageFiles != null ? imageFiles.length : 0);
+            
+            if (imageFiles != null) {
+                java.util.List<Map<String, String>> images = new java.util.ArrayList<>();
+                for (File img : imageFiles) {
+                    Map<String, String> imgInfo = new HashMap<>();
+                    imgInfo.put("filename", img.getName());
+                    imgInfo.put("path", img.getAbsolutePath());
+                    imgInfo.put("size", String.valueOf(img.length()));
+                    images.add(imgInfo);
+                }
+                responseData.put("images", images);
+            }
+            
+            return objectMapper.writeValueAsString(responseData);
+            
+        } catch (IllegalArgumentException e) {
+            response.status(400);
+            return createErrorResponse(false, e.getMessage());
+        } catch (Exception e) {
+            response.status(500);
+            System.err.println("Rasterization error: " + e.getMessage());
+            e.printStackTrace();
+            return createErrorResponse(false, "Server error: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Handles file download requests.
      */
     private static Object handleDownload(Request request, Response response) {
@@ -348,12 +461,21 @@ public class PreflightApiController {
                 return "Missing filename";
             }
             
-            // Determine file path (look in current directory and temp directories)
-            File file = new File(filename);
-            if (!file.exists()) {
-                // Try in system temp directory
-                String tempDir = System.getProperty("java.io.tmpdir");
-                file = new File(tempDir, filename);
+            // Check if full path is provided as query parameter (for rasterized images)
+            String fullPath = request.queryParams("path");
+            File file;
+            
+            if (fullPath != null && !fullPath.isEmpty()) {
+                // Use the full path directly
+                file = new File(fullPath);
+            } else {
+                // Determine file path (look in current directory and temp directories)
+                file = new File(filename);
+                if (!file.exists()) {
+                    // Try in system temp directory
+                    String tempDir = System.getProperty("java.io.tmpdir");
+                    file = new File(tempDir, filename);
+                }
             }
             
             if (!file.exists()) {
@@ -361,8 +483,18 @@ public class PreflightApiController {
                 return "File not found: " + filename;
             }
             
+            // Determine content type based on file extension
+            String contentType = "application/octet-stream";
+            if (filename.toLowerCase().endsWith(".pdf")) {
+                contentType = "application/pdf";
+            } else if (filename.toLowerCase().endsWith(".png")) {
+                contentType = "image/png";
+            } else if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
+                contentType = "image/jpeg";
+            }
+            
             // Set response headers for file download
-            response.type("application/pdf");
+            response.type(contentType);
             response.header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
             response.header("Content-Length", String.valueOf(file.length()));
             

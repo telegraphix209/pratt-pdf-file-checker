@@ -9,6 +9,7 @@ const App = {
     // Initialize the application
     init() {
         this.setupEventListeners();
+        this.checkRasterizerStatus();
         console.log('PDF Preflight Web UI initialized');
     },
 
@@ -167,6 +168,17 @@ const App = {
             
             // Display results
             await this.displayResults(data);
+            
+            // Rasterize pages if enabled
+            const enableRasterizer = document.getElementById('enableRasterizer');
+            if (enableRasterizer && enableRasterizer.checked && this.currentPdfPath) {
+                this.updateProcessingStatus('Rasterizing pages...');
+                // Rasterize first 10 pages or all pages (whichever is smaller)
+                const totalPages = data.result.totalPages || 10;
+                const pagesToRasterize = Math.min(totalPages, 10);
+                const pageNumbers = Array.from({length: pagesToRasterize}, (_, i) => i + 1);
+                await this.rasterizePages(pageNumbers);
+            }
             
         } catch (error) {
             console.error('Preflight error:', error);
@@ -508,6 +520,89 @@ const App = {
     // Close print preparation modal
     closePrintPrepModal() {
         document.getElementById('printPrepModal').style.display = 'none';
+    },
+    
+    // Check if MuPDF rasterizer is available
+    async checkRasterizerStatus() {
+        try {
+            const response = await fetch('/api/rasterizer/status');
+            const data = await response.json();
+            const checkbox = document.getElementById('enableRasterizer');
+            
+            if (!data.available) {
+                checkbox.disabled = true;
+                checkbox.parentElement.title = 'MuPDF not installed - rasterization unavailable';
+                console.log('MuPDF rasterizer not available');
+            } else {
+                console.log('MuPDF rasterizer available');
+            }
+        } catch (error) {
+            console.error('Error checking rasterizer status:', error);
+        }
+    },
+    
+    // Rasterize PDF pages
+    async rasterizePages(pageNumbers) {
+        try {
+            const rasterizedPanel = document.getElementById('rasterizedPanel');
+            const rasterizedStatus = document.getElementById('rasterizedStatus');
+            const rasterizedGrid = document.getElementById('rasterizedGrid');
+            
+            // Show panel and loading state
+            rasterizedPanel.style.display = 'block';
+            rasterizedStatus.textContent = 'Rasterizing pages...';
+            rasterizedStatus.className = 'rasterized-status loading';
+            rasterizedGrid.innerHTML = '';
+            
+            const dpi = document.getElementById('rasterDpi').value;
+            
+            const response = await fetch('/api/rasterize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputPdfPath: this.currentPdfPath,
+                    pageNumbers: pageNumbers,
+                    dpi: parseInt(dpi)
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Rasterization failed');
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Rasterization failed');
+            }
+            
+            // Display rasterized images
+            rasterizedStatus.textContent = `✓ ${data.imageCount} pages rasterized at ${dpi} DPI`;
+            rasterizedStatus.className = 'rasterized-status success';
+            
+            data.images.forEach(img => {
+                const imgDiv = document.createElement('div');
+                imgDiv.className = 'rasterized-image-card';
+                imgDiv.innerHTML = `
+                    <img src="/api/download/${encodeURIComponent(img.filename)}?path=${encodeURIComponent(img.path)}" 
+                         alt="${img.filename}" 
+                         onclick="window.open(this.src, '_blank')">
+                    <div class="image-info">${img.filename}</div>
+                `;
+                rasterizedGrid.appendChild(imgDiv);
+            });
+            
+            console.log(`Successfully rasterized ${data.imageCount} pages`);
+            
+        } catch (error) {
+            console.error('Rasterization error:', error);
+            const rasterizedStatus = document.getElementById('rasterizedStatus');
+            rasterizedStatus.textContent = `✗ ${error.message}`;
+            rasterizedStatus.className = 'rasterized-status error';
+        }
     }
 };
 

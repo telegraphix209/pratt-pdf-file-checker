@@ -1,5 +1,6 @@
 package com.preflight.web;
 
+import com.preflight.rasterizer.PdfRasterizer;
 import static spark.Spark.*;
 import javax.servlet.MultipartConfigElement;
 
@@ -12,6 +13,9 @@ public class PreflightWebServer {
     public static void main(String[] args) {
         // Configure server
         port(8080);
+        
+        // Initialize MuPDF rasterizer if available
+        initializeRasterizer();
         
         // Serve static files from /public directory
         staticFiles.location("/public");
@@ -30,5 +34,40 @@ public class PreflightWebServer {
         System.out.println("  to start validating PDF files.");
         System.out.println();
         System.out.println("=================================================");
+    }
+    
+    /**
+     * Initializes the MuPDF rasterizer if mutool is available.
+     */
+    private static void initializeRasterizer() {
+        // Try common MuPDF paths
+        String[] mutoolPaths = {
+            "mutool",  // In PATH
+            "/usr/local/bin/mutool",  // macOS Homebrew
+            "/opt/homebrew/bin/mutool",  // macOS Apple Silicon
+            "/usr/bin/mutool"  // Linux
+        };
+        
+        PdfRasterizer rasterizer = null;
+        String foundPath = null;
+        
+        for (String path : mutoolPaths) {
+            PdfRasterizer testRasterizer = new PdfRasterizer(path);
+            if (testRasterizer.isMuPdfAvailable()) {
+                rasterizer = testRasterizer;
+                foundPath = path;
+                break;
+            }
+        }
+        
+        if (rasterizer != null) {
+            PreflightApiController.setRasterizer(rasterizer);
+            System.out.println("  ✓ MuPDF rasterizer enabled: " + foundPath);
+        } else {
+            System.out.println("  ✗ MuPDF not found (rasterization disabled)");
+            System.out.println("    Install with: brew install mupdf-tools (macOS)");
+            System.out.println("    Or: sudo apt-get install mupdf-tools (Linux)");
+        }
+        System.out.println();
     }
 }
